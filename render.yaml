@@ -1,0 +1,8 @@
+services:
+  - type: cron
+    name: daily-economic-briefing
+    env: python
+    schedule: "0 7 * * *"  # Tous les jours à 07:00 (heure Render)
+    plan: free
+    buildCommand: ""
+    startCommand: "python fetch_news.py"
