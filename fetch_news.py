@@ -1,6 +1,7 @@
 import requests
 import os
 import smtplib
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 def get_economic_news():
@@ -11,38 +12,48 @@ def get_economic_news():
 
     articles = data.get("data", [])[:3]
     if not articles:
-        return "Aucune actualité économique n’a été trouvée aujourd’hui."
+        return "<p>Aucune actualité économique trouvée aujourd’hui.</p>"
 
-    news_list = []
-    for i, article in enumerate(articles, 1):
+    html_list = "<h2 style='color:#2c3e50;'>📰 Economic Brief</h2><ul>"
+
+    for article in articles:
         title = article.get("title", "Sans titre")
         source = article.get("source", "Source inconnue")
+        date = article.get("published_at", "Date inconnue")[:10]
         url = article.get("url", "#")
-        news_list.append(f"{i}. {title} ({source})\n{url}")
 
-    return "\n\n".join(news_list)
+        html_list += f"""
+        <li style='margin-bottom:15px;'>
+            <a href="{url}" style="font-weight:bold; color:#2980b9; text-decoration:none;">{title}</a><br>
+            <small>{source} • {date}</small>
+        </li>
+        """
 
-def send_email(subject, body):
+    html_list += "</ul>"
+    return html_list
+
+def send_email(subject, body_html):
     sender = os.getenv("EMAIL_USER")
     password = os.getenv("EMAIL_PASSWORD")
     recipient = os.getenv("EMAIL_TO")
 
-    msg = MIMEText(body, "plain", "utf-8")
+    msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = recipient
 
-    # Debug pour t’assurer que les variables sont bien prises en compte
-    print(f"EMAIL DEBUG → FROM: {sender}, TO: {recipient}, PASS: {password[:4]}***")
+    html_part = MIMEText(body_html, "html", "utf-8")
+    msg.attach(html_part)
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender, password)
             server.send_message(msg)
-        print("✅ Email envoyé avec succès.")
+        print("✅ Email HTML envoyé avec succès.")
     except Exception as e:
         print(f"❌ Erreur lors de l'envoi de l'email : {e}")
 
 if __name__ == "__main__":
     briefing = get_economic_news()
     send_email("📰 Résumé économique du jour", briefing)
+
